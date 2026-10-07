@@ -28,35 +28,42 @@ PR DEV → main ──► CI + Lighthouse ──► merge ──► imagem :late
 
 ## Etapa 1 — GitHub: segurança do repositório
 
-O repositório é **privado** (plano Free). Alguns recursos de segurança do GitHub são pagos em
-repositórios privados (secret scanning, CodeQL, rulesets obrigatórios, revisores em ambientes);
-aqui ficam só os que funcionam no plano gratuito. Faça isto **antes** do primeiro push.
+O repositório é **público** (portfólio). Em repositório público, todos os recursos de segurança
+abaixo são gratuitos.
 
-1. **Permissões padrão dos workflows**
-   1. Abra `https://github.com/MarcosCantelli/CV-Page-MVRC` → **Settings** → **Actions** → **General**.
-   2. Em **Workflow permissions**, marque **Read repository contents and packages permissions**
-      (cada job pede só o que precisa). Clique em **Save**.
-   3. Em **Fork pull request workflows in private repositories**, deixe **desmarcado**
-      _Run workflows from fork pull requests_.
-2. **Dependabot** → **Settings** → **Advanced Security** (em contas mais antigas:
-   **Code security and analysis**):
-   - **Dependabot alerts** → **Enable**.
-   - **Dependabot security updates** → **Enable**.
-3. **Privacidade do seu e-mail nos commits.** Em github.com, clique no avatar → **Settings** → **Emails**:
-   - Marque **Keep my email addresses private**.
-   - Marque **Block command line pushes that expose my email**.
-   - Neste repositório, os commits já usam o endereço `71090384+MarcosCantelli@users.noreply.github.com`
-     (configurado com `git config user.email` só para este repo).
-4. **Proteção contra vazamento de segredos (gratuita, na sua conta).** Avatar → **Settings** →
-   **Code security** → **Push protection for yourself** → **Enable**. Ela bloqueia pushes seus que
-   contenham tokens conhecidos (vale para todos os repositórios). Além disso, o `.gitignore` já
-   ignora `.env*` e os `.docx` do currículo.
+1. **Permissões e forks no GitHub Actions** → **Settings** → **Actions** → **General**:
+   1. **Workflow permissions**: marque **Read repository contents and packages permissions**
+      (cada job pede só o que precisa). **Save**.
+   2. **Approval for running fork pull request workflows from contributors**: marque
+      **Require approval for all external contributors**. **Save**.
+      Isso protege o runner self-hosted (etapa 2): workflows de PRs de fork só rodam se você
+      clicar em _Approve and run_. Essa seção **só aparece com o repositório público**; enquanto
+      ele for privado, a seção se chama _Fork pull request workflows_ e deve ficar com
+      _Run workflows from fork pull requests_ **desmarcado**.
+   3. **Actions permissions**: marque **Require actions to be pinned to a full-length commit SHA**.
+      **Save**. Todos os workflows já usam actions fixadas por SHA.
+2. **Settings** → **Advanced Security** (em contas mais antigas: **Code security and analysis**):
+   - **Private vulnerability reporting** → **Enable** (canal descrito no `SECURITY.md`).
+   - **Dependabot alerts** → **Enable** e **Dependabot security updates** → **Enable**.
+   - **Secret Protection** → **Enable** e **Push protection** → **Enable**.
+   - **Code scanning** → **CodeQL analysis** → **Set up** → **Default** → **Enable CodeQL**.
+3. **Proteção da `main`** → **Settings** → **Rules** → **Rulesets** → **New branch ruleset**:
+   nome `main`, **Enforcement status** _Active_, **Target branches** → **Include default branch**,
+   marque **Restrict deletions**, **Block force pushes**, **Require a pull request before merging**
+   e **Require status checks to pass** → `Lint, check and build`. **Create**.
+4. **Privacidade do seu e-mail nos commits.** Avatar → **Settings** → **Emails**: marque
+   **Keep my email addresses private** e **Block command line pushes that expose my email**.
+   Os commits deste repositório usam `71090384+MarcosCantelli@users.noreply.github.com`.
 
-> Se um dia tornar o repositório público, ative também em **Settings** → **Advanced Security**:
-> **Secret Protection**, **Push protection**, **Private vulnerability reporting** e **CodeQL**
-> (todos gratuitos em repositório público), e reveja o aviso do runner na etapa 2.
+**Regras de convivência com o runner self-hosted em repositório público:**
 
-✅ **Pronto quando:** as permissões dos workflows estão em _Read_ e o Dependabot está _Enabled_.
+- **Nunca** clique em **Approve and run workflows** num PR de fork de outra pessoa.
+- **Não faça merge** de PR de terceiros que altere `.github/workflows/` ou `deploy/` sem revisar
+  linha por linha: depois do merge no `DEV`, o código roda no servidor de dev.
+- PRs do **Dependabot** são do próprio GitHub e podem seguir o fluxo normal.
+
+✅ **Pronto quando:** a aprovação de forks está em _Require approval for all external
+contributors_ e os recursos de segurança estão _Enabled_.
 
 ---
 
@@ -66,11 +73,11 @@ O workflow `container.yml` publica a imagem `ghcr.io/marcoscantelli/cv-page-mvrc
 `DEV`. O deploy é feito por um **runner do GitHub Actions instalado no servidor de dev**: ele só
 faz conexões de saída para o GitHub, sem abrir nenhuma porta.
 
-> ⚠️ **Segurança:** um runner self-hosted executa código vindo do repositório. Como o repositório é
-> privado, só quem tem acesso de escrita consegue disparar jobs nele, e os workflows só usam o
-> runner em `push` no `DEV`. **Não torne o repositório público com este runner ativo.** O usuário
-> do runner fica no grupo `docker`, o que equivale a acesso de root no servidor de dev: use uma
-> máquina/VM de dev sem dados sensíveis.
+> ⚠️ **Segurança:** um runner self-hosted executa código vindo do repositório. Os workflows só usam
+> o runner em `push` no `DEV` (nunca em `pull_request`), e a etapa 1 exige sua aprovação para
+> workflows de forks. Siga as regras de convivência da etapa 1. O usuário do runner fica no grupo
+> `docker`, o que equivale a acesso de root no servidor de dev: use uma máquina/VM de dev sem dados
+> sensíveis.
 
 ### 2.1 Criar o usuário e as pastas
 
@@ -293,7 +300,7 @@ Cloudflare, então basta acrescentar uma rota para `mvrc.com.br`. Isso economiza
 512 MB) e não mexe na outra aplicação.
 
 ```
-Internet ─► Cloudflare ─► túnel (cloudflared no host) ─┬─► outro-dominio  → 127.0.0.1:8081  (crochedajuka)
+Internet ─► Cloudflare ─► túnel (cloudflared no host) ─┬─► outro-dominio  → 127.0.0.1:8081  (outra aplicação)
                                                        └─► mvrc.com.br    → 127.0.0.1:4321  (este site)
 ```
 
@@ -381,8 +388,8 @@ continua no ar.
 ## Etapa 6 — VPS na OCI e primeiro deploy manual
 
 VPS: **Oracle Linux 9.8**, x86_64 (AMD), **512 MB de RAM** + 4 GB de swap, 1 OCPU. A imagem é só
-`linux/amd64`. A máquina **já roda outra aplicação** (crochedajuka, containers em
-`127.0.0.1:8081/8082`) com Docker CE 29 e `cloudflared` no host. Nada aqui altera essa aplicação:
+`linux/amd64`. A máquina **já roda outra aplicação** (containers publicados só em
+`127.0.0.1`) com Docker CE 29 e `cloudflared` no host. Nada aqui altera essa aplicação:
 este site roda num projeto Compose separado (`cv-page-mvrc`), publicado só em `127.0.0.1:4321`, com
 limite de 128 MB de memória (uso medido: ~55 MB).
 
@@ -441,7 +448,7 @@ Na VPS, como `deploy`:
 ```bash
 sudo -iu deploy
 cd /opt/cv-page-mvrc
-# copie do seu computador (o repositório é privado):
+# copie do seu computador (a esteira também copia a cada deploy):
 #   scp docker-compose.yml deploy@<IP_DA_VPS>:/opt/cv-page-mvrc/
 nano .env
 chmod 600 .env
