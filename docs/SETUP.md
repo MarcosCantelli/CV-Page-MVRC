@@ -53,7 +53,18 @@ O repositório é público, então faça isto **antes** do primeiro push com wor
    aprovar cada deploy em produção. Os ambientes `dev` e `production` também são criados
    automaticamente no primeiro deploy, se você pular este item.
 
-✅ **Pronto quando:** secret scanning e push protection estão como _Enabled_.
+5. **Demais proteções do repositório público** (todas gratuitas). Em **Settings** → **Advanced Security**:
+   - **Private vulnerability reporting** → **Enable**. Isso permite receber relatos privados (veja `SECURITY.md`).
+   - **Dependabot alerts** → **Enable** e **Dependabot security updates** → **Enable**.
+   - **Code scanning** → **CodeQL analysis** → **Set up** → **Default** → **Enable CodeQL**.
+6. **Privacidade do seu e-mail nos commits.** Em github.com, clique no avatar → **Settings** → **Emails**:
+   - Marque **Keep my email addresses private**.
+   - Marque **Block command line pushes that expose my email**.
+   - Neste repositório, os commits já usam o endereço `71090384+MarcosCantelli@users.noreply.github.com`
+     (configurado com `git config user.email` só para este repo).
+
+✅ **Pronto quando:** secret scanning, push protection, private vulnerability reporting, Dependabot e
+CodeQL estão como _Enabled_.
 
 ---
 
@@ -459,13 +470,13 @@ Nesse modo, ajuste o workflow `container.yml` para copiar os arquivos de `deploy
 1. **Settings** → **Secrets and variables** → **Actions** → aba **Secrets** →
    **New repository secret**, um por vez:
 
-   | Nome                   | Valor                                                                                 |
-   | ---------------------- | ------------------------------------------------------------------------------------- |
-   | `VPS_HOST`             | IP público da VPS                                                                     |
-   | `VPS_USER`             | `deploy`                                                                              |
-   | `VPS_SSH_KEY`          | conteúdo **inteiro** de `~/.ssh/cv_deploy` (inclui `-----BEGIN ...` e `-----END ...`) |
-   | `VPS_PORT`             | (opcional) porta SSH, se não for 22                                                   |
-   | `VPS_HOST_FINGERPRINT` | (recomendado) valor `SHA256:...` mostrado pelo `setup-vps.sh`                         |
+   | Nome                   | Valor                                                                                                    |
+   | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+   | `VPS_HOST`             | IP público da VPS                                                                                        |
+   | `VPS_USER`             | `deploy`                                                                                                 |
+   | `VPS_SSH_KEY`          | conteúdo **inteiro** de `~/.ssh/cv_deploy` (inclui `-----BEGIN ...` e `-----END ...`)                    |
+   | `VPS_PORT`             | (opcional) porta SSH, se não for 22                                                                      |
+   | `VPS_HOST_FINGERPRINT` | **obrigatório**: valor `SHA256:...` mostrado pelo `setup-vps.sh` (evita ataque man-in-the-middle no SSH) |
 
 2. Aba **Variables**: confira que `TURNSTILE_SITE_KEY` existe (etapa 3).
 3. `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY` e `TUNNEL_TOKEN` **não** vão para o GitHub: ficam só no
