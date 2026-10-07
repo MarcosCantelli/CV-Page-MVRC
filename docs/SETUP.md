@@ -533,13 +533,13 @@ Nesse modo, ajuste o workflow `container.yml` para copiar os arquivos de `deploy
 1. **Settings** → **Secrets and variables** → **Actions** → aba **Secrets** →
    **New repository secret**, um por vez:
 
-   | Nome                   | Valor                                                                                                    |
-   | ---------------------- | -------------------------------------------------------------------------------------------------------- |
-   | `VPS_HOST`             | IP público da VPS                                                                                        |
-   | `VPS_USER`             | `deploy`                                                                                                 |
-   | `VPS_SSH_KEY`          | conteúdo **inteiro** de `~/.ssh/cv_deploy` (inclui `-----BEGIN ...` e `-----END ...`)                    |
-   | `VPS_PORT`             | (opcional) porta SSH, se não for 22                                                                      |
-   | `VPS_HOST_FINGERPRINT` | **obrigatório**: valor `SHA256:...` mostrado pelo `setup-vps.sh` (evita ataque man-in-the-middle no SSH) |
+   | Nome                   | Valor                                                                                                                                                                                                                      |
+   | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `VPS_HOST`             | IP público da VPS                                                                                                                                                                                                          |
+   | `VPS_USER`             | `deploy`                                                                                                                                                                                                                   |
+   | `VPS_SSH_KEY`          | conteúdo **inteiro** de `~/.ssh/cv_deploy` (inclui `-----BEGIN ...` e `-----END ...`)                                                                                                                                      |
+   | `VPS_PORT`             | (opcional) porta SSH, se não for 22                                                                                                                                                                                        |
+   | `VPS_HOST_FINGERPRINT` | **obrigatório**: valor `SHA256:...` da chave **ECDSA** do host, mostrado pelo `setup-vps.sh` (`ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub`). A action negocia ECDSA; usar a ED25519 dá `host key fingerprint mismatch` |
 
 2. Aba **Variables**: confira que `TURNSTILE_SITE_KEY` existe (etapa 3).
 3. `RESEND_API_KEY` e `TURNSTILE_SECRET_KEY` **não** vão para o GitHub: ficam só no

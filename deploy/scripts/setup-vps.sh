@@ -117,5 +117,11 @@ echo
 echo ">> Done. Next steps (docs/SETUP.md, etapa 6):"
 echo "   1. put .env and docker-compose.yml in $APP_DIR (owner $DEPLOY_USER, .env chmod 600)"
 echo "   2. sudo -iu $DEPLOY_USER; cd $APP_DIR && docker compose pull && docker compose up -d"
+# appleboy/ssh-action and scp-action (Go x/crypto/ssh) negotiate the ECDSA host key first,
+# so VPS_HOST_FINGERPRINT must be the ECDSA fingerprint (fallback: ED25519 if there is no ECDSA key).
 echo "   Host key fingerprint for the VPS_HOST_FINGERPRINT secret:"
-ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "   " $2}'
+if [ -f /etc/ssh/ssh_host_ecdsa_key.pub ]; then
+  ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub | awk '{print "   " $2 "  (ECDSA)"}'
+else
+  ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub | awk '{print "   " $2 "  (ED25519)"}'
+fi
