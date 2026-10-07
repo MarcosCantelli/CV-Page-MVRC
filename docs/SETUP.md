@@ -27,44 +27,35 @@ PR DEV → main ──► CI + Lighthouse ──► merge ──► imagem :late
 
 ## Etapa 1 — GitHub: segurança do repositório
 
-O repositório é público, então faça isto **antes** do primeiro push com workflows.
+O repositório é **privado** (plano Free). Alguns recursos de segurança do GitHub são pagos em
+repositórios privados (secret scanning, CodeQL, rulesets obrigatórios, revisores em ambientes);
+aqui ficam só os que funcionam no plano gratuito. Faça isto **antes** do primeiro push.
 
-1. **Secret scanning e push protection**
-   1. Abra `https://github.com/MarcosCantelli/CV-Page-MVRC`.
-   2. **Settings** → (menu lateral, seção _Security_) **Advanced Security**
-      (em contas mais antigas: **Code security and analysis**).
-   3. Em **Secret Protection** (ou **Secret scanning**), clique em **Enable**.
-   4. Logo abaixo, em **Push protection**, clique em **Enable**.
-2. **Proteger o runner self-hosted contra PRs de forks** (importante, veja o aviso na etapa 2)
-   1. **Settings** → **Actions** → **General**.
-   2. Em **Fork pull request workflows from outside collaborators**, escolha
-      **Require approval for all external contributors**. Clique em **Save**.
-   3. Em **Workflow permissions**, deixe **Read repository contents and packages permissions**
-      (os workflows pedem só o que precisam). Clique em **Save**.
-3. **Proteção da `main`** (recomendado)
-   1. **Settings** → **Rules** → **Rulesets** → **New ruleset** → **New branch ruleset**.
-   2. Nome: `main`. **Enforcement status**: _Active_. **Target branches** → **Add target** →
-      **Include default branch**.
-   3. Marque **Restrict deletions**, **Block force pushes**, **Require a pull request before merging** e
-      **Require status checks to pass** → **Add checks** → `Lint, check and build`.
-   4. **Create**.
-4. **Ambientes**: **Settings** → **Environments** → **New environment** → `production` →
-   **Configure environment**. Opcional: marque **Required reviewers** e adicione você mesmo para
-   aprovar cada deploy em produção. Os ambientes `dev` e `production` também são criados
-   automaticamente no primeiro deploy, se você pular este item.
-
-5. **Demais proteções do repositório público** (todas gratuitas). Em **Settings** → **Advanced Security**:
-   - **Private vulnerability reporting** → **Enable**. Isso permite receber relatos privados (veja `SECURITY.md`).
-   - **Dependabot alerts** → **Enable** e **Dependabot security updates** → **Enable**.
-   - **Code scanning** → **CodeQL analysis** → **Set up** → **Default** → **Enable CodeQL**.
-6. **Privacidade do seu e-mail nos commits.** Em github.com, clique no avatar → **Settings** → **Emails**:
+1. **Permissões padrão dos workflows**
+   1. Abra `https://github.com/MarcosCantelli/CV-Page-MVRC` → **Settings** → **Actions** → **General**.
+   2. Em **Workflow permissions**, marque **Read repository contents and packages permissions**
+      (cada job pede só o que precisa). Clique em **Save**.
+   3. Em **Fork pull request workflows in private repositories**, deixe **desmarcado**
+      _Run workflows from fork pull requests_.
+2. **Dependabot** → **Settings** → **Advanced Security** (em contas mais antigas:
+   **Code security and analysis**):
+   - **Dependabot alerts** → **Enable**.
+   - **Dependabot security updates** → **Enable**.
+3. **Privacidade do seu e-mail nos commits.** Em github.com, clique no avatar → **Settings** → **Emails**:
    - Marque **Keep my email addresses private**.
    - Marque **Block command line pushes that expose my email**.
    - Neste repositório, os commits já usam o endereço `71090384+MarcosCantelli@users.noreply.github.com`
      (configurado com `git config user.email` só para este repo).
+4. **Proteção contra vazamento de segredos (gratuita, na sua conta).** Avatar → **Settings** →
+   **Code security** → **Push protection for yourself** → **Enable**. Ela bloqueia pushes seus que
+   contenham tokens conhecidos (vale para todos os repositórios). Além disso, o `.gitignore` já
+   ignora `.env*` e os `.docx` do currículo.
 
-✅ **Pronto quando:** secret scanning, push protection, private vulnerability reporting, Dependabot e
-CodeQL estão como _Enabled_.
+> Se um dia tornar o repositório público, ative também em **Settings** → **Advanced Security**:
+> **Secret Protection**, **Push protection**, **Private vulnerability reporting** e **CodeQL**
+> (todos gratuitos em repositório público), e reveja o aviso do runner na etapa 2.
+
+✅ **Pronto quando:** as permissões dos workflows estão em _Read_ e o Dependabot está _Enabled_.
 
 ---
 
@@ -74,11 +65,11 @@ O workflow `container.yml` publica a imagem `ghcr.io/marcoscantelli/cv-page-mvrc
 `DEV`. O deploy é feito por um **runner do GitHub Actions instalado no servidor de dev**: ele só
 faz conexões de saída para o GitHub, sem abrir nenhuma porta.
 
-> ⚠️ **Segurança:** um runner self-hosted executa código vindo do repositório. Em repositório
-> público, nunca dispare jobs nele a partir de `pull_request` (os workflows deste projeto só usam
-> o runner em `push` no `DEV`). Mantenha a opção da etapa 1.2 ativa. O usuário do runner fica
-> no grupo `docker`, o que equivale a ter acesso de root no servidor de dev: use uma máquina/VM de dev
-> sem dados sensíveis.
+> ⚠️ **Segurança:** um runner self-hosted executa código vindo do repositório. Como o repositório é
+> privado, só quem tem acesso de escrita consegue disparar jobs nele, e os workflows só usam o
+> runner em `push` no `DEV`. **Não torne o repositório público com este runner ativo.** O usuário
+> do runner fica no grupo `docker`, o que equivale a acesso de root no servidor de dev: use uma
+> máquina/VM de dev sem dados sensíveis.
 
 ### 2.1 Criar o usuário e as pastas
 
@@ -158,10 +149,8 @@ estiver ocupada, mude `CV_HOST_PORT` no `.env`.
 
 1. Faça push do branch `DEV`. Em **Actions** → **Container**, acompanhe os jobs
    `Build and push image` e `Deploy to dev server`.
-2. Se o pull da imagem falhar com `denied`, deixe o pacote público: no GitHub, abra seu perfil →
-   **Packages** → `cv-page-mvrc` → **Package settings** → **Danger Zone** → **Change visibility** →
-   **Public**. (O job de dev também faz login no GHCR com o token do workflow, o que cobre
-   imagens privadas.)
+2. A imagem no GHCR é privada (herda a visibilidade do repositório). O job de dev faz login no
+   GHCR com o token do próprio workflow, então não é preciso configurar nada no servidor de dev.
 3. Abra `http://dev.mvrc.local/cv/` e `http://dev.mvrc.local/cv/en/`. Envie o formulário: a
    mensagem aparece nos logs (`docker logs cv-page-mvrc-dev-app-1`), pois `MAIL_DRIVER=log`.
 
@@ -383,8 +372,8 @@ Na VPS, como `deploy`:
 ```bash
 sudo -iu deploy
 cd /opt/cv-page-mvrc
-curl -fsSLO https://raw.githubusercontent.com/MarcosCantelli/CV-Page-MVRC/main/docker-compose.yml
-# (antes do merge na main, copie o arquivo do seu computador com scp)
+# copie do seu computador (o repositório é privado):
+#   scp docker-compose.yml deploy@<IP_DA_VPS>:/opt/cv-page-mvrc/
 nano .env
 chmod 600 .env
 ```
@@ -402,17 +391,22 @@ HSTS=true
 TAG=latest
 ```
 
-### 6.5 Imagem pública ou privada no GHCR
+### 6.5 Login no GHCR (imagem privada)
 
-- **Pública** (recomendado; o código já é público): perfil no GitHub → **Packages** → `cv-page-mvrc` →
-  **Package settings** → **Change visibility** → **Public**. Não é preciso login na VPS.
-- **Privada**: crie um token em GitHub → avatar → **Settings** → **Developer settings** →
-  **Personal access tokens** → **Tokens (classic)** → **Generate new token (classic)** com
-  apenas o escopo `read:packages`. Na VPS, como `deploy`:
+A imagem é privada, então a VPS precisa de um token **só de leitura**:
 
-  ```bash
-  echo '<TOKEN>' | docker login ghcr.io -u MarcosCantelli --password-stdin
-  ```
+1. GitHub → avatar → **Settings** → **Developer settings** → **Personal access tokens** →
+   **Tokens (classic)** → **Generate new token** → **Generate new token (classic)**.
+2. **Note**: `vps-ghcr-pull`. **Expiration**: 1 ano (anote para renovar). **Scopes**: marque
+   **apenas** `read:packages`. **Generate token** e copie o valor (`ghp_...`).
+3. Na VPS, como `deploy`:
+
+   ```bash
+   echo '<TOKEN>' | docker login ghcr.io -u MarcosCantelli --password-stdin
+   ```
+
+   O login fica salvo em `/home/deploy/.docker/config.json` e é usado pelo deploy automático.
+   (Os _fine-grained tokens_ ainda não funcionam com o GHCR; por isso o token clássico.)
 
 > A imagem `:latest` só existe depois do primeiro push na `main` (etapa 7). Para testar antes,
 > use `TAG=sha-<commit>` de um build da `main` ou gere a imagem localmente.
@@ -482,9 +476,8 @@ Nesse modo, ajuste o workflow `container.yml` para copiar os arquivos de `deploy
 3. `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY` e `TUNNEL_TOKEN` **não** vão para o GitHub: ficam só no
    `.env` da VPS.
 4. Abra um **pull request `DEV` → `main`**. O CI roda lint, check, build e Lighthouse.
-5. Faça o merge. Em **Actions** → **Container**: `Build and push image` → `Deploy to production`
-   (se você configurou revisores no ambiente `production`, aprove o deploy). O job termina com um
-   `curl` em `https://mvrc.com.br/healthz`.
+5. Faça o merge. Em **Actions** → **Container**: `Build and push image` → `Deploy to production`.
+   O job termina com um `curl` em `https://mvrc.com.br/healthz`.
 
 **Rollback:** na VPS, `cd /opt/cv-page-mvrc`, edite `TAG=sha-<commit-anterior>` no `.env` e rode
 `docker compose up -d`.
