@@ -1,0 +1,51 @@
+# Production (OCI VPS): app + Cloudflare Tunnel. No ports are published on the host;
+# traffic arrives only through the tunnel (outbound connection from cloudflared).
+#
+# Usage on the server (in /opt/cv-page-mvrc, next to the .env file):
+#   docker compose pull && docker compose up -d
+
+name: cv-page-mvrc
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+services:
+  app:
+    <<: *hardening
+    image: ${IMAGE:-ghcr.io/marcoscantelli/cv-page-mvrc}:${TAG:-latest}
+    env_file: .env
+    environment:
+      PORT: '4321'
+      NODE_OPTIONS: '--max-old-space-size=192'
+    tmpfs:
+      - /tmp
+    expose:
+      - '4321'
+    mem_limit: 256m
+    cpus: 0.75
+    networks: [web]
+
+  cloudflared:
+    <<: *hardening
+    image: cloudflare/cloudflared:2026.10.0
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+    networks: [web]
+
+networks:
+  web: {}

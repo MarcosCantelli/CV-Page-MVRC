@@ -1,0 +1,43 @@
+# ALTERNATIVE to the Cloudflare Tunnel: Cloudflare DNS (proxied, orange cloud) ->
+# VPS ports 80/443 -> Caddy -> app. Requires opening 80/443 in the OCI Security List
+# AND in the OS firewall (see docs/SETUP.md, section "Alternativa: Caddy").
+#
+# Usage: copy this file and the Caddyfile to /opt/cv-page-mvrc and run
+#   docker compose up -d
+
+name: cv-page-mvrc
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/marcoscantelli/cv-page-mvrc}:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - '4321'
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+
+  caddy:
+    image: caddy:2.11-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+
+volumes:
+  caddy_data:
+  caddy_config:

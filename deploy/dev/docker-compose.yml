@@ -1,0 +1,29 @@
+# On-premises dev server. The image is built with BASE_PATH=/cv and served at
+# http://dev.mvrc.local/cv/ through the internal reverse proxy (see docs/SETUP.md).
+# The self-hosted GitHub runner copies this file to /opt/cv-page-mvrc-dev/.
+
+name: cv-page-mvrc-dev
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/marcoscantelli/cv-page-mvrc}:${TAG:-dev}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: '4321'
+      HSTS: 'false' # plain HTTP on the LAN
+    ports:
+      - '${CV_HOST_PORT:-4321}:4321'
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
