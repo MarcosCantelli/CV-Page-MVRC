@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Color tokens. All text/background pairs meet WCAG AA in both themes. */
+:root {
+  color-scheme: light;
+  --bg: #f7f6f4;
+  --surface: #ffffff;
+  --surface-2: #f0eeeb;
+  --fg: #1c1a19;
+  --muted: #57524d;
+  --border: #e3e0dc;
+  --accent: #8c2f3c;
+  --accent-fg: #ffffff;
+  --accent-soft: #f5e6e8;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #111111;
+  --surface: #191919;
+  --surface-2: #222222;
+  --fg: #ecebea;
+  --muted: #a9a49f;
+  --border: #2e2c2b;
+  --accent: #e58f9c;
+  --accent-fg: #1c0a0e;
+  --accent-soft: #2c1a1d;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+}
+
+/* Smooth color change while switching theme (only during the switch). */
+html.theme-transition,
+html.theme-transition * {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    fill 300ms ease !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 350ms;
+}
+
+/* ---------- Motion (only when html has .motion, i.e. JS on and no reduced-motion) ---------- */
+.motion .reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+}
+.motion .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Experience timeline line "drawn" while scrolling. */
+.timeline-line {
+  transform-origin: top;
+}
+.motion .timeline-line {
+  transform: scaleY(0);
+  transition: transform 1200ms ease-out;
+}
+.motion .timeline-line.is-visible {
+  transform: scaleY(1);
+}
+@supports (animation-timeline: view()) {
+  .motion .timeline-line {
+    transition: none;
+    animation: draw-line linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 60%;
+  }
+}
+@keyframes draw-line {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.lift {
+  transition: transform 200ms ease;
+}
+.motion .lift:hover,
+.motion .lift:focus-within {
+  transform: translateY(-3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,49 @@
+---
+import type { Locale } from '../content/types';
+import { asset, cvPdf, getContent } from '../lib/i18n';
+import Icon from './Icon.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const { cv, t } = getContent(locale);
+---
+
+<section class="pt-16 pb-10 sm:pt-24 sm:pb-14" aria-labelledby="hero-title">
+  <p class="mb-3 text-sm font-medium tracking-wide text-accent uppercase">
+    {cv.headline.split('|')[0]?.trim()}
+  </p>
+  <h1 id="hero-title" class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+    {cv.name}
+  </h1>
+  <p class="mt-4 max-w-2xl text-lg text-muted sm:text-xl">{cv.headline}</p>
+
+  <ul class="mt-6 flex flex-wrap gap-2" aria-label="Tech stack">
+    {cv.tags.map((tag) => (
+      <li class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-sm">
+        {tag.icon && <Icon name={tag.icon} class="size-3.5 text-muted" />}
+        {tag.label}
+      </li>
+    ))}
+  </ul>
+
+  <div class="mt-8 flex flex-wrap gap-3">
+    <a
+      href={asset(cvPdf[locale])}
+      download
+      type="application/pdf"
+      class="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg shadow-sm transition-opacity hover:opacity-90"
+    >
+      <Icon name="download" class="size-4.5" />
+      {t.hero.download}
+    </a>
+    <a
+      href="#contact"
+      class="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 font-medium hover:border-accent hover:text-accent"
+    >
+      <Icon name="mail" class="size-4.5" />
+      {t.hero.contact}
+    </a>
+  </div>
+</section>

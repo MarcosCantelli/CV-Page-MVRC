@@ -1,0 +1,15 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import type { Locale } from '../content/types';
+import { getContent } from '../lib/i18n';
+
+type Props = HTMLAttributes<'a'> & { href: string; locale: Locale };
+
+const { href, locale, ...rest } = Astro.props;
+const { t } = getContent(locale);
+---
+
+<a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
+  <slot />
+  <span class="sr-only"> {t.newTab}</span>
+</a>

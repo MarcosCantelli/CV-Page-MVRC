@@ -1,0 +1,39 @@
+---
+import type { Locale } from '../content/types';
+import { getContent } from '../lib/i18n';
+import ExternalLink from './ExternalLink.astro';
+import Icon from './Icon.astro';
+import Section from './Section.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const { cv, t } = getContent(locale);
+---
+
+<Section id="courses" title={t.sections.courses}>
+  <ul class="grid gap-5 sm:grid-cols-2">
+    {cv.courses.map((c) => (
+      <li class="reveal">
+        <ExternalLink
+          href={c.url}
+          locale={locale}
+          class="lift flex items-center gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm hover:border-accent hover:shadow-md"
+        >
+          <span class="grid size-11 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+            <Icon name={c.icon} class="size-5" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold">{c.name}</span>
+            <span class="block text-sm text-muted">{c.provider}</span>
+          </span>
+          <span class="inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap text-accent">
+            {c.link === 'certificate' ? t.courses.view : t.courses.viewProfile}
+            <Icon name="external" class="size-3.5" />
+          </span>
+        </ExternalLink>
+      </li>
+    ))}
+  </ul>
+</Section>

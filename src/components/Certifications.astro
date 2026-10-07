@@ -1,0 +1,75 @@
+---
+import { Picture } from 'astro:assets';
+import type { Locale } from '../content/types';
+import { getContent } from '../lib/i18n';
+import { getBadge } from '../lib/images';
+import ExternalLink from './ExternalLink.astro';
+import Icon from './Icon.astro';
+import Section from './Section.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const { cv, t } = getContent(locale);
+---
+
+<Section id="certifications" title={t.sections.certifications}>
+  <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    {cv.certifications.map((cert) => {
+      const badge = getBadge(cert.badge);
+      const earned = cert.status === 'earned';
+      const body = (
+        <>
+          <div class="grid size-28 place-items-center">
+            {badge ? (
+              <Picture
+                src={badge}
+                alt={`Badge ${cert.name}`}
+                formats={['avif', 'webp']}
+                width={224}
+                class={`size-28 object-contain ${earned ? '' : 'opacity-50 grayscale'}`}
+              />
+            ) : (
+              <span
+                class={`grid size-20 place-items-center rounded-full ${earned ? 'bg-accent-soft text-accent' : 'border-2 border-dashed border-border text-muted'}`}
+              >
+                <Icon name={earned ? 'award' : 'hourglass'} class="size-9" />
+              </span>
+            )}
+          </div>
+          <div class="text-center">
+            <h3 class="font-semibold text-balance">{cert.name}</h3>
+            <p class="mt-1 text-sm text-muted">{cert.issuer}</p>
+          </div>
+          {earned ? (
+            <span class="mt-auto inline-flex items-center gap-1 text-sm font-medium text-accent">
+              {t.cert.verify}
+              <Icon name="external" class="size-3.5" />
+            </span>
+          ) : (
+            <span class="mt-auto rounded-full border border-dashed border-muted px-3 py-0.5 text-xs font-medium tracking-wide text-muted uppercase">
+              {t.cert.inProgress}
+            </span>
+          )}
+        </>
+      );
+      const cls = 'flex h-full flex-col items-center gap-4 rounded-xl p-6 text-center';
+      return (
+        <li class="reveal">
+          {earned && cert.url ? (
+            <ExternalLink
+              href={cert.url}
+              locale={locale}
+              class={`lift ${cls} border border-border bg-surface shadow-sm hover:border-accent hover:shadow-md`}
+            >
+              {body}
+            </ExternalLink>
+          ) : (
+            <div class={`${cls} border border-dashed border-border bg-transparent`}>{body}</div>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+</Section>

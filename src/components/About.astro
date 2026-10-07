@@ -1,0 +1,32 @@
+---
+import type { Locale } from '../content/types';
+import { getContent } from '../lib/i18n';
+import Icon from './Icon.astro';
+import Section from './Section.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const { cv, t } = getContent(locale);
+---
+
+<Section id="about" title={t.sections.about}>
+  <p class="reveal max-w-3xl text-lg leading-relaxed text-pretty">{cv.about}</p>
+  <div class="reveal mt-8">
+    <h3 class="mb-3 text-sm font-semibold tracking-wide text-muted uppercase">
+      {t.sections.education}
+    </h3>
+    <ul class="space-y-2">
+      {cv.education.map((e) => (
+        <li class="flex items-center gap-3">
+          <Icon name="school" class="size-5 text-accent" />
+          <span>
+            <span class="font-medium">{e.degree}</span>
+            <span class="text-muted"> · {e.school}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Section>

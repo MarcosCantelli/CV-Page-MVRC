@@ -1,0 +1,41 @@
+---
+import type { Locale } from '../content/types';
+import { getContent } from '../lib/i18n';
+import ExternalLink from './ExternalLink.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const { cv, t } = getContent(locale);
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-border">
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-muted sm:px-6">
+    <p>
+      © {year} {t.footer.rights}
+    </p>
+    <ul class="flex gap-5">
+      <li>
+        <ExternalLink href={cv.links.linkedin} locale={locale} class="hover:text-accent">
+          LinkedIn
+        </ExternalLink>
+      </li>
+      <li>
+        <ExternalLink href={cv.links.github} locale={locale} class="hover:text-accent">
+          GitHub
+        </ExternalLink>
+      </li>
+      <li>
+        <ExternalLink
+          href="https://github.com/MarcosCantelli/CV-Page-MVRC"
+          locale={locale}
+          class="hover:text-accent"
+        >
+          {t.footer.source}
+        </ExternalLink>
+      </li>
+    </ul>
+  </div>
+</footer>
