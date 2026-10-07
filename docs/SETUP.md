@@ -37,7 +37,11 @@ abaixo são gratuitos.
    2. **Approval for running fork pull request workflows from contributors**: marque
       **Require approval for all external contributors**. **Save**.
       Isso protege o runner self-hosted (etapa 2): workflows de PRs de fork só rodam se você
-      clicar em _Approve and run_.
+      clicar em _Approve and run_. Essa seção **só aparece com o repositório público**; enquanto
+      ele for privado, a seção se chama _Fork pull request workflows_ e deve ficar com
+      _Run workflows from fork pull requests_ **desmarcado**.
+   3. **Actions permissions**: marque **Require actions to be pinned to a full-length commit SHA**.
+      **Save**. Todos os workflows já usam actions fixadas por SHA.
 2. **Settings** → **Advanced Security** (em contas mais antigas: **Code security and analysis**):
    - **Private vulnerability reporting** → **Enable** (canal descrito no `SECURITY.md`).
    - **Dependabot alerts** → **Enable** e **Dependabot security updates** → **Enable**.
