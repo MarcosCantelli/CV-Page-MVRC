@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { HONEYPOT_FIELD, contactSchema, type ContactErrorCode } from '../../lib/contact-schema';
 import { getMailer } from '../../lib/mail';
-import { clientIp, isRateLimited } from '../../lib/rate-limit';
+import { clientIp, isRateLimited, reserveGlobalSend } from '../../lib/rate-limit';
 import { verifyTurnstile } from '../../lib/turnstile';
 import * as z from 'zod/mini';
 
@@ -16,14 +16,17 @@ const json = (status: number, body: { ok: boolean; errors?: ContactErrorCode[] }
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
-  if (!request.headers.get('content-type')?.includes('application/json')) {
+  // Exact media type check: "text/plain; x=application/json" must not pass (CSRF via simple requests).
+  const mediaType = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+  if (mediaType !== 'application/json') {
     return json(415, { ok: false, errors: ['server'] });
   }
 
   let payload: Record<string, unknown>;
   try {
     payload = (await request.json()) as Record<string, unknown>;
-    if (typeof payload !== 'object' || payload === null) throw new Error('not an object');
+    if (typeof payload !== 'object' || payload === null || Array.isArray(payload))
+      throw new Error('not an object');
   } catch {
     return json(400, { ok: false, errors: ['server'] });
   }
@@ -44,6 +47,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   const token = typeof payload['turnstileToken'] === 'string' ? payload['turnstileToken'] : '';
   if (!(await verifyTurnstile(token, ip))) return json(400, { ok: false, errors: ['captcha'] });
+
+  // Global cap on e-mails actually sent (protects the Resend quota even if many IPs pass the checks).
+  if (!reserveGlobalSend()) return json(429, { ok: false, errors: ['rate_limited'] });
 
   const { name, email, company, message } = parsed.data;
   const lang = payload['lang'] === 'en' ? 'en' : 'pt';
