@@ -26,13 +26,19 @@ const securityHeaders = {
 const server = http.createServer((req, res) => {
   for (const [key, value] of Object.entries(securityHeaders)) res.setHeader(key, value);
 
-  if (req.url === '/healthz') {
+  if (req.url?.split('?')[0] === '/healthz') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end('{"status":"ok"}');
     return;
   }
   handler(req, res);
 });
+
+// The reverse proxy (cloudflared) reuses idle upstream connections for up to 90 s. Node closes
+// idle keep-alive sockets after 5 s by default, so the proxy sometimes writes to a socket Node
+// is closing and the visitor gets a 502. Keep idle sockets open longer than the proxy does.
+server.keepAliveTimeout = 120_000;
+server.headersTimeout = 125_000; // must be greater than keepAliveTimeout
 
 server.listen(port, host, () => console.log(`Server listening on http://${host}:${port}`));
 
