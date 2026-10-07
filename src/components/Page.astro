@@ -1,0 +1,38 @@
+---
+import type { Locale } from '../content/types';
+import Base from '../layouts/Base.astro';
+import About from './About.astro';
+import Certifications from './Certifications.astro';
+import Contact from './Contact.astro';
+import Courses from './Courses.astro';
+import Experience from './Experience.astro';
+import Footer from './Footer.astro';
+import Header from './Header.astro';
+import Hero from './Hero.astro';
+import Projects from './Projects.astro';
+import Skills from './Skills.astro';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+---
+
+<Base locale={locale}>
+  <Header locale={locale} />
+  <main id="main" class="mx-auto max-w-7xl px-4 sm:px-6">
+    <Hero locale={locale} />
+    <About locale={locale} />
+    <Experience locale={locale} />
+    <Certifications locale={locale} />
+    <Skills locale={locale} />
+    <Projects locale={locale} />
+    <Courses locale={locale} />
+    <Contact locale={locale} />
+  </main>
+  <Footer locale={locale} />
+</Base>
+
+<script>
+  import '../scripts/main';
+</script>

@@ -1,0 +1,23 @@
+---
+// Emits every icon once as a <symbol>; <Icon> references them with <use>.
+import { icons } from '../icons';
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden" aria-hidden="true">
+  {Object.entries(icons).map(([name, icon]) => (
+    <symbol id={`i-${name}`} viewBox="0 0 24 24">
+      {icon.stroke ? (
+        <path
+          d={icon.path}
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      ) : (
+        <path d={icon.path} fill="currentColor" />
+      )}
+    </symbol>
+  ))}
+</svg>

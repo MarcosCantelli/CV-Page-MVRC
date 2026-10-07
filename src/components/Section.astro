@@ -1,0 +1,26 @@
+---
+interface Props {
+  id: string;
+  title: string;
+}
+const { id, title } = Astro.props;
+---
+
+<!-- On wide screens the title becomes a sticky left column, using the full 16:9 width. -->
+<section
+  id={id}
+  aria-labelledby={`${id}-title`}
+  class="scroll-mt-20 border-t border-border/60 py-14 first-of-type:border-t-0 sm:py-20 xl:grid xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-14"
+  data-section
+>
+  <h2
+    id={`${id}-title`}
+    class="reveal mb-8 flex items-center gap-3 text-2xl font-semibold tracking-tight sm:text-3xl xl:sticky xl:top-24 xl:mb-0 xl:self-start"
+  >
+    <span class="h-6 w-1 rounded-full bg-accent" aria-hidden="true"></span>
+    {title}
+  </h2>
+  <div class="min-w-0">
+    <slot />
+  </div>
+</section>

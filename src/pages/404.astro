@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import { getContent, localeHome } from '../lib/i18n';
+
+const { t } = getContent('pt');
+const en = getContent('en').t;
+---
+
+<Base locale="pt" title={`404 · ${t.notFound.title}`} noindex>
+  <main
+    id="main"
+    class="mx-auto grid min-h-dvh max-w-xl place-content-center gap-6 px-6 text-center"
+  >
+    <p class="text-6xl font-bold text-accent">404</p>
+    <div>
+      <h1 class="text-2xl font-semibold">{t.notFound.title}</h1>
+      <p class="mt-2 text-muted">{t.notFound.text}</p>
+      <p class="mt-1 text-muted" lang="en-US">
+        {en.notFound.title}. {en.notFound.text}
+      </p>
+    </div>
+    <p class="flex justify-center gap-4">
+      <a href={localeHome('pt')} class="font-medium text-accent hover:underline">
+        {t.notFound.back}
+      </a>
+      <a href={localeHome('en')} lang="en-US" class="font-medium text-accent hover:underline">
+        {en.notFound.back}
+      </a>
+    </p>
+  </main>
+</Base>

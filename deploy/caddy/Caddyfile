@@ -1,0 +1,12 @@
+# Caddy gets a Let's Encrypt certificate automatically. In Cloudflare use
+# SSL/TLS mode "Full (strict)".
+{$DOMAIN:mvrc.com.br}, www.{$DOMAIN:mvrc.com.br} {
+	encode zstd gzip
+
+	@www host www.{$DOMAIN:mvrc.com.br}
+	redir @www https://{$DOMAIN:mvrc.com.br}{uri} permanent
+
+	# Cloudflare forwards the real client IP in CF-Connecting-IP (used by the rate limit).
+	# Restrict ports 80/443 to Cloudflare IP ranges so this header cannot be spoofed.
+	reverse_proxy app:4321
+}

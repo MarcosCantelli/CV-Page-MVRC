@@ -1,0 +1,59 @@
+# Production (OCI VPS, Oracle Linux 9, 512 MB RAM, shared with another application).
+#
+# The app is published on 127.0.0.1 only. Traffic arrives through the Cloudflare Tunnel that
+# already runs on the host (cloudflared systemd service): add the public hostname
+# mvrc.com.br -> http://127.0.0.1:4321 to that tunnel (docs/SETUP.md, etapa 5).
+#
+# Standalone alternative (no cloudflared on the host): set TUNNEL_TOKEN in .env and run
+#   docker compose --profile tunnel up -d
+#
+# Usage on the server (in /opt/cv-page-mvrc, next to the .env file):
+#   docker compose pull && docker compose up -d
+
+name: cv-page-mvrc
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
+services:
+  app:
+    <<: *hardening
+    image: ${IMAGE:-ghcr.io/marcoscantelli/cv-page-mvrc}:${TAG:-latest}
+    env_file: .env
+    environment:
+      PORT: '4321'
+      # Measured ~55 MB RSS; keep the footprint small on the 512 MB VM.
+      NODE_OPTIONS: '--max-old-space-size=64'
+    tmpfs:
+      - /tmp
+    ports:
+      - '127.0.0.1:${CV_HOST_PORT:-4321}:4321'
+    mem_limit: 128m
+    cpus: 0.5
+    networks: [web]
+
+  cloudflared:
+    <<: *hardening
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:2026.10.0
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 64m
+    networks: [web]
+
+networks:
+  web: {}

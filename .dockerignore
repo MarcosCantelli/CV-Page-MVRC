@@ -1,0 +1,30 @@
+# Everything not needed to build the image
+**/node_modules
+dist
+.astro
+.git
+.github
+.vscode
+.idea
+**/*.log
+**/.DS_Store
+.lighthouseci
+
+# Secrets and private files
+.env
+.env.*
+!.env.example
+docs
+deploy
+*.pem
+*.key
+
+# Container / CI files
+Dockerfile
+.dockerignore
+docker-compose*.yml
+compose*.yml
+
+# Docs
+README.md
+LICENSE

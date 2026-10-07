@@ -1,0 +1,44 @@
+# On-premises dev server. The image is built with BASE_PATH=/cv and served at
+# http://dev.mvrc.local/cv/ through the Traefik instance that already runs on the
+# server (external Docker network "web"). See docs/SETUP.md, etapa 2.3.
+# The self-hosted GitHub runner copies this file to /opt/cv-page-mvrc-dev/.
+
+name: cv-page-mvrc-dev
+
+services:
+  app:
+    image: ${IMAGE:-ghcr.io/marcoscantelli/cv-page-mvrc}:${TAG:-dev}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: '4321'
+      HSTS: 'false' # plain HTTP on the LAN
+    # Published on loopback only (used by the deploy health check). LAN traffic goes through Traefik.
+    ports:
+      - '127.0.0.1:${CV_HOST_PORT:-4321}:4321'
+    networks: [web]
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: ${TRAEFIK_NETWORK:-web}
+      # The /cv prefix is NOT stripped: the site is built for BASE_PATH=/cv.
+      traefik.http.routers.cv-dev.rule: Host(`${CV_DEV_HOST:-dev.mvrc.local}`) && (Path(`/cv`) || PathPrefix(`/cv/`))
+      traefik.http.routers.cv-dev.entrypoints: ${TRAEFIK_ENTRYPOINT:-web}
+      traefik.http.services.cv-dev.loadbalancer.server.port: '4321'
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+networks:
+  web:
+    name: ${TRAEFIK_NETWORK:-web}
+    external: true
