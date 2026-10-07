@@ -70,6 +70,7 @@ const pt = {
   },
   footer: {
     rights: 'Marcos Cantelli',
+    source: 'Código-fonte',
   },
   newTab: '(abre em nova aba)',
   notFound: {
@@ -151,6 +152,7 @@ const en: UI = {
   },
   footer: {
     rights: 'Marcos Cantelli',
+    source: 'Source code',
   },
   newTab: '(opens in a new tab)',
   notFound: {
