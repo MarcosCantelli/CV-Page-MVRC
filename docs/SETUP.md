@@ -122,28 +122,32 @@ sudo chmod 600 /opt/cv-page-mvrc-dev/.env
 5. Em **Settings** → **Actions** → **Runners**, o runner `dev-server` deve aparecer como **Idle**
    com os labels `self-hosted`, `Linux`, `X64`, `cv-dev`.
 
-### 2.3 Proxy interno: `dev.mvrc.local/cv`
+### 2.3 Proxy interno: Traefik em `dev.mvrc.local/cv`
 
-O container escuta em `http://<servidor-dev>:4321` e **espera o prefixo `/cv`** no caminho (a
-imagem de dev é gerada com `BASE_PATH=/cv`). No seu proxy, **não remova o prefixo**.
+O servidor de dev já roda um **Traefik v3** (porta 80) com o provider Docker e a rede externa
+`web`. O `deploy/dev/docker-compose.yml` coloca o container nessa rede e declara as labels:
 
-Nginx:
+- regra `Host(`dev.mvrc.local`) && (Path(`/cv`) || PathPrefix(`/cv/`))`;
+- entrypoint `web`, porta interna `4321`;
+- **sem** middleware `StripPrefix`, porque a imagem de dev é gerada com `BASE_PATH=/cv`.
 
-```nginx
-location = /cv { return 301 /cv/; }
-location /cv/ {
-    proxy_pass http://127.0.0.1:4321;   # sem barra no final: mantém /cv/ no caminho
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
+A porta 4321 só é publicada em `127.0.0.1`, usada pelo teste de saúde do deploy. Na rede local,
+o acesso passa pelo Traefik.
+
+Se o seu Traefik usar outros nomes, ajuste no `/opt/cv-page-mvrc-dev/.env`:
+
+```dotenv
+TRAEFIK_NETWORK=web        # rede Docker em que o Traefik está
+TRAEFIK_ENTRYPOINT=web     # entrypoint HTTP (veja --entrypoints.<nome>.address=:80)
+CV_DEV_HOST=dev.mvrc.local
 ```
 
-Traefik (labels): `PathPrefix(`/cv`)` **sem** middleware `StripPrefix`.
-Caddy: `handle /cv* { reverse_proxy 127.0.0.1:4321 }` (use `handle`, não `handle_path`).
+Para conferir os nomes reais:
 
-Se o proxy roda em outra máquina, troque `127.0.0.1` pelo IP do servidor de dev. Se a porta 4321
-estiver ocupada, mude `CV_HOST_PORT` no `.env`.
+```bash
+docker inspect traefik-traefik-1 --format '{{json .Config.Cmd}}' | tr ',' '\n' | grep -iE 'entrypoints|docker'
+docker inspect traefik-traefik-1 --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+```
 
 ### 2.4 Primeiro deploy de dev
 
