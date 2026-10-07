@@ -23,7 +23,9 @@ const { cv, t } = getContent(locale);
         const logo = getLogo(job.logo);
         return (
           <li class="reveal relative grid grid-cols-[3rem_1fr] gap-4 sm:grid-cols-[3.5rem_1fr] sm:gap-6">
-            <div class="relative z-10 grid size-12 place-items-center overflow-hidden rounded-full border border-border bg-surface shadow-sm sm:size-14">
+            <div
+              class={`relative z-10 grid size-12 place-items-center overflow-hidden rounded-full border border-border shadow-sm sm:size-14 ${logo ? 'bg-white' : 'bg-surface'}`}
+            >
               {logo ? (
                 <Picture
                   src={logo}

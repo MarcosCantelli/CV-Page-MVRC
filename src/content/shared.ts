@@ -7,7 +7,7 @@ export const links = {
 export const certUrls = {
   az900:
     'https://learn.microsoft.com/api/credentials/share/pt-br/MarcosCantelli-4128/E8D395B2E22E75A1?sharingId=76658F63FE70B25F',
-  ccna: 'https://www.credly.com/badges/67214095-b68c-4250-ab20-fec525fe8530/public_url',
+  ccna: 'https://www.credly.com/badges/67214095-b68c-4250-ab20-fec525fe8530',
 } as const;
 
 export const courseUrls = {
