@@ -147,6 +147,14 @@ jobs:
             docker-compose.yml
             deploy/scripts
           sparse-checkout-cone-mode: false
+      - name: Require SSH host key pinning
+        env:
+          FINGERPRINT: ${{ secrets.VPS_HOST_FINGERPRINT }}
+        run: |
+          if [ -z "$FINGERPRINT" ]; then
+            echo "::error::Secret VPS_HOST_FINGERPRINT is not set (see docs/SETUP.md, etapa 7)"
+            exit 1
+          fi
       - name: Copy compose file and deploy script
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
         with:
