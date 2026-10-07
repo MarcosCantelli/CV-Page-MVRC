@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#8C2F3C"/>
-  <text x="32" y="42" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff">MC</text>
+  <rect width="64" height="64" rx="14" fill="#1F4E79"/>
+  <g transform="translate(-36 9) scale(1.6)" fill="none" stroke="#fff" stroke-width="4.5" stroke-linejoin="miter">
+    <path d="M31 4l11 23 7-14.5"/>
+    <path d="M49 12.5l5.5-11"/>
+    <path d="M50.5 1.5h7v7z" fill="#fff" stroke-width="1"/>
+  </g>
 </svg>

@@ -56,7 +56,7 @@ const { cv, t } = getContent(locale);
   <h3 class="reveal mt-12 mb-4 text-sm font-semibold tracking-wide text-muted uppercase">
     {t.sections.academicProjects}
   </h3>
-  <ol class="space-y-3">
+  <ol class="grid gap-3 lg:grid-cols-2">
     {cv.academicProjects.map((p) => (
       <li class="reveal grid grid-cols-[3.5rem_1fr] gap-4 rounded-xl border border-border bg-surface p-4">
         <span class="font-semibold text-accent tabular-nums">{p.year}</span>

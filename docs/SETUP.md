@@ -6,21 +6,22 @@ on-premises (**dev.mvrc.local/cv**). Siga as etapas **na ordem**: cada uma depen
 > Os nomes de menus dos painéis (Cloudflare, Resend, GitHub) mudam de tempos em tempos. Se um
 > item não estiver exatamente com o nome indicado, procure pelo termo entre aspas na busca do painel.
 
-| Etapa | O quê                                          | Necessária para               |
-| ----- | ---------------------------------------------- | ----------------------------- |
-| 1     | GitHub: segurança do repositório               | tudo                          |
-| 2     | Servidor de dev: runner self-hosted            | pipeline do branch `DEV`      |
-| 3     | Cloudflare Turnstile                           | build de produção             |
-| 4     | Resend (e-mail)                                | formulário de contato em prod |
-| 5     | Cloudflare Tunnel                              | publicar o site               |
-| 6     | VPS na OCI e primeiro deploy manual            | produção                      |
-| 7     | GitHub: segredos de deploy e deploy automático | deploy contínuo na `main`     |
+| Etapa | O quê                                   | Necessária para               |
+| ----- | --------------------------------------- | ----------------------------- |
+| 1     | GitHub: segurança do repositório        | tudo                          |
+| 2     | Servidor de dev: runner self-hosted     | pipeline do branch `DEV`      |
+| 3     | Cloudflare Turnstile                    | build de produção             |
+| 4     | Resend (e-mail)                         | formulário de contato em prod |
+| 5     | Cloudflare Tunnel                       | publicar o site               |
+| 6     | VPS na OCI e primeiro deploy manual     | produção                      |
+| 7     | GitHub: segredos e deploy com aprovação | deploy em produção            |
 
 Fluxo de trabalho depois de tudo pronto:
 
 ```
 commit no DEV ──► CI + imagem :dev ──► servidor de dev (dev.mvrc.local/cv)
-PR DEV → main ──► CI + Lighthouse ──► merge ──► imagem :latest ──► VPS (mvrc.com.br)
+PR DEV → main ──► CI + Lighthouse ──► merge ──► imagem :latest
+                                     └─► você clica "Run workflow" (Deploy production) ──► VPS (mvrc.com.br)
 ```
 
 ---
@@ -284,47 +285,106 @@ curl -s -X POST http://localhost:4321/api/contact \
 
 ---
 
-## Etapa 5 — Cloudflare Tunnel
+## Etapa 5 — Cloudflare Tunnel (reaproveitando o túnel que já existe)
 
-O túnel liga o container ao domínio sem abrir portas na VPS.
+A VPS já roda um `cloudflared` **no host** (pacote rpm, serviço systemd) que publica a outra
+aplicação. Um mesmo túnel atende hostnames de **domínios diferentes** da mesma conta
+Cloudflare, então basta acrescentar uma rota para `mvrc.com.br`. Isso economiza memória (a VM tem
+512 MB) e não mexe na outra aplicação.
 
-1. **dash.cloudflare.com** → **Zero Trust** (menu lateral). Na primeira vez, escolha um nome de
-   equipe e o plano **Free**.
-2. **Networks** → **Tunnels** → **Create a tunnel**.
-3. Tipo: **Cloudflared** → **Next**.
-4. **Tunnel name**: `cv-page-mvrc` → **Save tunnel**.
-5. Em **Choose your environment**, selecione **Docker**. Aparece um comando
-   `docker run cloudflare/cloudflared:latest tunnel ... run --token eyJ...`.
-   Copie **só o token** (o texto depois de `--token`). Ele vai no `.env` da VPS:
-   `TUNNEL_TOKEN=eyJ...`. **Não** rode o comando mostrado, porque o `docker-compose.yml` já
-   tem o serviço `cloudflared`. Clique em **Next**.
-6. **Public Hostnames** (em painéis novos: **Published application routes**) → **Add**:
+```
+Internet ─► Cloudflare ─► túnel (cloudflared no host) ─┬─► outro-dominio  → 127.0.0.1:8081  (crochedajuka)
+                                                       └─► mvrc.com.br    → 127.0.0.1:4321  (este site)
+```
+
+### 5.1 Descobrir como o túnel é gerenciado
+
+Na VPS:
+
+```bash
+systemctl cat cloudflared | grep -i execstart
+sudo ls /etc/cloudflared/ 2>/dev/null
+```
+
+- Se o `ExecStart` tem `--token` (ou `run --token`): túnel **gerenciado pelo painel** → siga **5.2**.
+- Se aparece `--config /etc/cloudflared/config.yml` (ou existe esse arquivo com `ingress:`): túnel
+  **gerenciado localmente** → siga **5.3**.
+
+### 5.2 Túnel gerenciado pelo painel
+
+1. **dash.cloudflare.com** → **Zero Trust** → **Networks** → **Tunnels**.
+2. Clique no túnel que já existe (o que está **Healthy**) → **Edit** (ou **Configure**).
+3. Aba **Public Hostname** (em painéis novos: **Published application routes**) → **Add a public
+   hostname**:
    - **Subdomain**: _(vazio)_ · **Domain**: `mvrc.com.br` · **Path**: _(vazio)_
-   - **Service** → **Type**: `HTTP` · **URL**: `app:4321`
-   - **Save**.
-   - Se a Cloudflare reclamar que já existe um registro DNS para `mvrc.com.br`, apague o
-     registro A/AAAA/CNAME antigo da raiz em **DNS** → **Records** e tente de novo.
-7. (Opcional) Repita para **Subdomain** `www`. Depois, em domínio → **Rules** → **Redirect Rules** →
-   **Create rule** → modelo _Redirect from WWW to root_.
-8. No domínio `mvrc.com.br`: **SSL/TLS** → **Edge Certificates** → ative **Always Use HTTPS** e
-   defina **Minimum TLS Version** = `TLS 1.2`.
+   - **Service** → **Type**: `HTTP` · **URL**: `127.0.0.1:4321`
+   - **Save hostname**.
+   - Se a Cloudflare reclamar que já existe um registro DNS para `mvrc.com.br`, apague o registro
+     A/AAAA/CNAME antigo da raiz em **mvrc.com.br** → **DNS** → **Records** e tente de novo.
+4. Não é preciso reiniciar nada na VPS: o `cloudflared` recebe a rota nova sozinho. A rota do
+   outro domínio continua como está.
 
-O status do túnel fica **Healthy** depois do primeiro `docker compose up -d` na VPS (etapa 6).
+### 5.3 Túnel gerenciado localmente (`config.yml`)
+
+1. Faça backup e edite o arquivo:
+
+   ```bash
+   sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak
+   sudo nano /etc/cloudflared/config.yml
+   ```
+
+2. Em `ingress:`, acrescente a regra **antes** da última linha (`- service: http_status:404`):
+
+   ```yaml
+   - hostname: mvrc.com.br
+     service: http://127.0.0.1:4321
+   ```
+
+3. Valide, crie o DNS e reinicie:
+
+   ```bash
+   sudo cloudflared tunnel ingress validate --config /etc/cloudflared/config.yml
+   sudo cloudflared tunnel route dns <NOME_OU_ID_DO_TUNEL> mvrc.com.br
+   sudo systemctl restart cloudflared
+   ```
+
+   O nome/ID do túnel está na linha `tunnel:` do mesmo arquivo. O `route dns` precisa do
+   `cert.pem` da conta (`cloudflared tunnel login`); se der erro, crie no painel o registro
+   **CNAME** `mvrc.com.br` → `<ID_DO_TUNEL>.cfargotunnel.com` com **Proxied** ligado.
+
+### 5.4 Ajustes do domínio `mvrc.com.br`
+
+1. (Opcional) `www`: repita a rota com **Subdomain** `www`, depois **Rules** → **Redirect Rules** →
+   **Create rule** → modelo _Redirect from WWW to root_.
+2. **SSL/TLS** → **Edge Certificates** → ative **Always Use HTTPS** e defina **Minimum TLS
+   Version** = `TLS 1.2`.
+
+Até o container subir (etapa 6), `https://mvrc.com.br` responde **502**. Isso é esperado.
 
 **Testar** (depois da etapa 6):
 
 ```bash
 curl -I https://mvrc.com.br/            # 200, com content-security-policy e strict-transport-security
 curl https://mvrc.com.br/healthz        # {"status":"ok"}
+curl -I https://<outro-dominio>/        # a outra aplicação continua respondendo
 ```
 
-✅ **Pronto quando:** você guardou o `TUNNEL_TOKEN` e o hostname público aponta para `app:4321`.
+> **Alternativa sem o cloudflared do host:** crie um túnel só para este site, coloque o token em
+> `TUNNEL_TOKEN` no `.env` e suba com `docker compose --profile tunnel up -d` (o serviço do túnel
+> aponta para `app:4321`). Custa ~30 MB a mais de memória.
+
+✅ **Pronto quando:** o túnel tem a rota `mvrc.com.br` → `127.0.0.1:4321` e a outra aplicação
+continua no ar.
 
 ---
 
 ## Etapa 6 — VPS na OCI e primeiro deploy manual
 
-VPS: x86_64 (AMD), 1 GB de RAM, 1 OCPU. A imagem é só `linux/amd64`.
+VPS: **Oracle Linux 9.8**, x86_64 (AMD), **512 MB de RAM** + 4 GB de swap, 1 OCPU. A imagem é só
+`linux/amd64`. A máquina **já roda outra aplicação** (crochedajuka, containers em
+`127.0.0.1:8081/8082`) com Docker CE 29 e `cloudflared` no host. Nada aqui altera essa aplicação:
+este site roda num projeto Compose separado (`cv-page-mvrc`), publicado só em `127.0.0.1:4321`, com
+limite de 128 MB de memória (uso medido: ~55 MB).
 
 ### 6.1 Chave SSH exclusiva para o deploy
 
@@ -338,17 +398,19 @@ cat ~/.ssh/cv_deploy       # chave privada -> segredo VPS_SSH_KEY no GitHub (eta
 
 ### 6.2 Preparar o servidor
 
-Entre na VPS com o seu usuário administrativo (`ubuntu` ou `opc`) e confira a arquitetura:
+Entre na VPS com o seu usuário administrativo (`mvrc` ou `opc`) e confira:
 
 ```bash
-uname -m      # deve mostrar x86_64
+uname -m                     # deve mostrar x86_64
+cat /etc/oracle-release      # Oracle Linux Server release 9.8
+sudo ss -ltnp | grep 4321    # deve voltar vazio (porta livre)
 ```
 
 Copie o script e execute-o passando a **chave pública** de deploy:
 
 ```bash
 # no seu computador
-scp deploy/scripts/setup-vps.sh ubuntu@<IP_DA_VPS>:/tmp/
+scp deploy/scripts/setup-vps.sh mvrc@<IP_DA_VPS>:/tmp/
 # na VPS
 sudo bash /tmp/setup-vps.sh "$(cat <<'K'
 ssh-ed25519 AAAA...cole-a-chave-publica... github-actions-deploy
@@ -356,9 +418,12 @@ K
 )"
 ```
 
-O script instala Docker Engine e o plugin Compose, cria o usuário `deploy` (grupo `docker`) com a
-chave, cria `/opt/cv-page-mvrc`, adiciona 2 GB de swap, desliga o login SSH por senha e mostra a
-**impressão digital da chave do host** (use no segredo `VPS_HOST_FINGERPRINT`).
+Como o Docker já está instalado e já existe swap, o script **só** cria o usuário `deploy` (grupo
+`docker`) com a chave, cria `/opt/cv-page-mvrc` e mostra a **impressão digital da chave do host**
+(use no segredo `VPS_HOST_FINGERPRINT`). Ele não reinstala, não remove e não reinicia nada.
+
+O hardening do SSH (desligar login por senha e de root) é **opcional**: acrescente `--harden-ssh`
+ao comando **somente** se o seu usuário entra por chave SSH. Se você entra com senha, não use.
 
 > Antes de fechar a sessão atual, teste em **outro terminal** se você e o usuário de deploy
 > continuam entrando: `ssh -i ~/.ssh/cv_deploy deploy@<IP_DA_VPS>`.
@@ -390,7 +455,6 @@ RESEND_API_KEY=re_...
 CONTACT_FROM_EMAIL="Site mvrc.com.br <contato@mvrc.com.br>"
 CONTACT_TO_EMAIL=<seu e-mail>
 TURNSTILE_SECRET_KEY=<Secret Key da etapa 3>
-TUNNEL_TOKEN=<token da etapa 5>
 HSTS=true
 TAG=latest
 ```
@@ -421,8 +485,9 @@ A imagem é privada, então a VPS precisa de um token **só de leitura**:
 cd /opt/cv-page-mvrc
 docker compose pull
 docker compose up -d
-docker compose ps                     # app: "healthy"; cloudflared: "running"
-docker compose logs -f cloudflared    # procure "Registered tunnel connection"
+docker compose ps                     # app: "healthy"
+curl -s http://127.0.0.1:4321/healthz # {"status":"ok"}
+docker stats --no-stream             # memória dos dois projetos lado a lado
 docker compose exec app /nodejs/bin/node healthcheck.mjs && echo saudável
 ```
 
@@ -463,7 +528,7 @@ Nesse modo, ajuste o workflow `container.yml` para copiar os arquivos de `deploy
 
 ---
 
-## Etapa 7 — GitHub: segredos de deploy e deploy automático
+## Etapa 7 — GitHub: segredos e deploy com aprovação
 
 1. **Settings** → **Secrets and variables** → **Actions** → aba **Secrets** →
    **New repository secret**, um por vez:
@@ -477,13 +542,25 @@ Nesse modo, ajuste o workflow `container.yml` para copiar os arquivos de `deploy
    | `VPS_HOST_FINGERPRINT` | **obrigatório**: valor `SHA256:...` mostrado pelo `setup-vps.sh` (evita ataque man-in-the-middle no SSH) |
 
 2. Aba **Variables**: confira que `TURNSTILE_SITE_KEY` existe (etapa 3).
-3. `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY` e `TUNNEL_TOKEN` **não** vão para o GitHub: ficam só no
+3. `RESEND_API_KEY` e `TURNSTILE_SECRET_KEY` **não** vão para o GitHub: ficam só no
    `.env` da VPS.
 4. Abra um **pull request `DEV` → `main`**. O CI roda lint, check, build e Lighthouse.
-5. Faça o merge. Em **Actions** → **Container**: `Build and push image` → `Deploy to production`.
-   O job termina com um `curl` em `https://mvrc.com.br/healthz`.
+5. Faça o merge. O workflow **Container** gera as imagens `:latest` e `sha-<commit>` e, no final,
+   o job **Request production approval** abre uma issue
+   **"Deploy production: sha-…"** (label `deploy-approval`) e **para**.
+6. **Aprovar:** abra a issue (aba **Issues**, ou o link no resumo do workflow) e comente
+   **`/approve`**. Isso dispara o workflow **Deploy production**, que confere se a imagem existe,
+   faz o deploy por SSH, testa `https://mvrc.com.br/healthz`, comenta o resultado e fecha a issue.
+   - **`/reject`** fecha a issue sem publicar.
+   - Só comentários do **dono do repositório** são aceitos. Se outro build chegar antes da
+     aprovação, a issue antiga é fechada e só a mais nova pode ser aprovada.
+   - Enquanto a issue espera, nenhum minuto do GitHub Actions é consumido.
+   - Por que issue e não o botão nativo "Review deployments"? O botão (revisores obrigatórios em
+     **Environments**) não existe em repositório privado no plano Free. Se o repositório ficar
+     público ou você assinar o GitHub Pro, dá para trocar por ele.
 
-**Rollback:** na VPS, `cd /opt/cv-page-mvrc`, edite `TAG=sha-<commit-anterior>` no `.env` e rode
-`docker compose up -d`.
+**Rollback:** **Actions** → **Deploy production** → **Run workflow** → **Branch: main** → informe
+no campo _Image tag_ o `sha-<commit-anterior>` (veja as tags em perfil → **Packages** →
+`cv-page-mvrc`) → **Run workflow**.
 
-✅ **Pronto quando:** o merge na `main` publica o site sozinho e o job fica verde.
+✅ **Pronto quando:** depois do `/approve`, a issue é fechada com "✅ Publicado".

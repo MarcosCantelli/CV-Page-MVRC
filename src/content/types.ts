@@ -23,6 +23,8 @@ export interface Experience {
 
 export interface Certification {
   name: string;
+  /** Short label used in the hero summary (e.g. AZ-900). */
+  short: string;
   issuer: string;
   /** Base file name of the badge in src/assets/badges/ (without extension). */
   badge: string;

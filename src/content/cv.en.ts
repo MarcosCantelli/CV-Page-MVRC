@@ -2,6 +2,7 @@ import type { CV } from './types';
 import { certUrls, courseUrls, links, tags } from './shared';
 
 // Source: docs/cv/Marcos_Cantelli_CV_EN.docx. Do not add anything that is not in the CV.
+// Requested change: under "Linux & scripting", C/C++ was replaced with Node.js and Java.
 export const cv: CV = {
   name: 'Marcos Vinícius Rodrigues Cantelli',
   headline: 'BI Analyst | Data, CI/CD & Cloud (Azure)',
@@ -65,6 +66,7 @@ export const cv: CV = {
   certifications: [
     {
       name: 'Microsoft Azure Fundamentals (AZ-900)',
+      short: 'AZ-900',
       issuer: 'Microsoft',
       badge: 'az-900',
       status: 'earned',
@@ -72,6 +74,7 @@ export const cv: CV = {
     },
     {
       name: 'Cisco CCNA – Introduction to Networks',
+      short: 'CCNA – Introduction to Networks',
       issuer: 'Cisco Networking Academy',
       badge: 'ccna-itn',
       status: 'earned',
@@ -79,6 +82,7 @@ export const cv: CV = {
     },
     {
       name: 'Microsoft Azure Administrator (AZ-104)',
+      short: 'AZ-104',
       issuer: 'Microsoft',
       badge: 'az-104',
       status: 'in-progress',
@@ -127,7 +131,8 @@ export const cv: CV = {
         { label: 'Linux', icon: 'linux' },
         { label: 'Bash', icon: 'bash' },
         { label: 'Python', icon: 'python' },
-        { label: 'C/C++', icon: 'cplusplus' },
+        { label: 'Node.js', icon: 'nodejs' },
+        { label: 'Java', icon: 'java' },
       ],
     },
     {

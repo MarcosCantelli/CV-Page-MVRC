@@ -1,0 +1,152 @@
+name: Deploy production
+
+# Runs when the repository OWNER comments "/approve" (or "/reject") on an approval issue opened
+# by container.yml, or manually (Run workflow) for a rollback to a specific tag.
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag for a manual deploy/rollback (e.g. sha-<commit>, latest, 1.2.0)'
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/marcoscantelli/cv-page-mvrc
+
+jobs:
+  reject:
+    name: Reject deployment
+    if: >-
+      github.event_name == 'issue_comment' &&
+      !github.event.issue.pull_request &&
+      github.event.issue.state == 'open' &&
+      contains(github.event.issue.labels.*.name, 'deploy-approval') &&
+      github.event.comment.author_association == 'OWNER' &&
+      startsWith(github.event.comment.body, '/reject')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ISSUE_URL: ${{ github.event.issue.url }}
+    steps:
+      - run: |
+          curl -fsS -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$ISSUE_URL" -d '{"state":"closed","state_reason":"not_planned"}' >/dev/null
+
+  deploy:
+    name: Deploy to production
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'issue_comment' &&
+       !github.event.issue.pull_request &&
+       github.event.issue.state == 'open' &&
+       contains(github.event.issue.labels.*.name, 'deploy-approval') &&
+       github.event.comment.author_association == 'OWNER' &&
+       startsWith(github.event.comment.body, '/approve'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://mvrc.com.br
+    permissions:
+      contents: read
+      packages: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ISSUE_URL: ${{ github.event.issue.url }}
+    steps:
+      - name: Resolve and validate tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          FINGERPRINT: ${{ secrets.VPS_HOST_FINGERPRINT }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = issue_comment ]; then
+            tag="${ISSUE_TITLE#Deploy production: }"
+          else
+            tag="$INPUT_TAG"
+          fi
+          if ! [[ "$tag" =~ ^(latest|sha-[0-9a-f]{40}|[0-9]+\.[0-9]+(\.[0-9]+)?)$ ]]; then
+            echo "::error::Invalid tag '$tag'"
+            exit 1
+          fi
+          if [ -z "$FINGERPRINT" ]; then
+            echo "::error::Secret VPS_HOST_FINGERPRINT is not set (see docs/SETUP.md, etapa 7)"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Deploying ${IMAGE}:${tag}" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check that the image exists
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: docker buildx imagetools inspect "${IMAGE}:${TAG}" >/dev/null
+
+      # issue_comment always runs with the default branch (main), so these files come from main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            docker-compose.yml
+            deploy/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Copy compose file and deploy script
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
+          source: docker-compose.yml,deploy/scripts/deploy.sh
+          target: /opt/cv-page-mvrc
+
+      - name: Pull and restart
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
+          envs: TAG
+          script: bash /opt/cv-page-mvrc/deploy/scripts/deploy.sh /opt/cv-page-mvrc "$TAG" http://127.0.0.1:4321/healthz
+
+      - name: Public health check
+        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors https://mvrc.com.br/healthz
+
+      - name: Report on the approval issue
+        if: always() && github.event_name == 'issue_comment'
+        env:
+          RESULT: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          api() { curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
+          if [ "$RESULT" = success ]; then
+            msg="✅ Publicado em https://mvrc.com.br ($RUN_URL)"
+            api -X POST "$ISSUE_URL/comments" -d "$(jq -n --arg b "$msg" '{body: $b}')" >/dev/null
+            api -X PATCH "$ISSUE_URL" -d '{"state":"closed","state_reason":"completed"}' >/dev/null
+          else
+            msg="❌ Deploy falhou ($RUN_URL). Corrija e comente /approve de novo."
+            api -X POST "$ISSUE_URL/comments" -d "$(jq -n --arg b "$msg" '{body: $b}')" >/dev/null
+          fi

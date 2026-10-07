@@ -71,18 +71,18 @@ See [`.env.example`](.env.example) for the full, commented list.
 | `TURNSTILE_SECRET_KEY`      | runtime | Turnstile secret key                                           |
 | `PORT` / `HOST`             | runtime | Listen address (default `0.0.0.0:4321`)                        |
 | `HSTS`                      | runtime | `false` to omit `Strict-Transport-Security` (plain HTTP)       |
-| `TUNNEL_TOKEN`              | compose | Cloudflare Tunnel token (production)                           |
+| `TUNNEL_TOKEN`              | compose | Only for `--profile tunnel` (own cloudflared container)        |
 | `SITE_URL`                  | build   | Public URL (default `https://mvrc.com.br`)                     |
 | `BASE_PATH`                 | build   | Base path (default `/`; the dev server uses `/cv`)             |
 | `PUBLIC_TURNSTILE_SITE_KEY` | build   | Turnstile site key (public)                                    |
 
 ## Deployment
 
-| Branch / tag | Image tags                   | Target                                                            |
-| ------------ | ---------------------------- | ----------------------------------------------------------------- |
-| `DEV`        | `dev`, `dev-sha-<commit>`    | On-premises dev server via a self-hosted runner (`/cv` base path) |
-| `main`       | `latest`, `sha-<commit>`     | Oracle Cloud VPS via SSH, published through a Cloudflare Tunnel   |
-| `v*`         | `<version>`, `<major.minor>` | Image only                                                        |
+| Branch / tag | Image tags                   | Target                                                                                  |
+| ------------ | ---------------------------- | --------------------------------------------------------------------------------------- |
+| `DEV`        | `dev`, `dev-sha-<commit>`    | On-premises dev server via a self-hosted runner (`/cv` base path)                       |
+| `main`       | `latest`, `sha-<commit>`     | Oracle Cloud VPS (Oracle Linux) via SSH after **manual approval** (`Deploy production`) |
+| `v*`         | `<version>`, `<major.minor>` | Image only                                                                              |
 
 Images: `ghcr.io/marcoscantelli/cv-page-mvrc` (`linux/amd64`).
 
@@ -98,8 +98,9 @@ flowchart LR
   ci2 --> main[Merge to main]
   main --> img2[Build image :latest]
   img2 --> ghcr
-  ghcr --> ssh[SSH deploy<br/>docker compose pull / up]
-  ssh --> vps[OCI VPS<br/>app + cloudflared]
+  ghcr --> gate{{Manual approval<br/>Run workflow}}
+  gate --> ssh[SSH deploy<br/>docker compose pull / up]
+  ssh --> vps[OCI VPS<br/>app on 127.0.0.1:4321<br/>shared host cloudflared]
   vps --> cf[Cloudflare Tunnel] --> site[mvrc.com.br]
 ```
 

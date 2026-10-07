@@ -12,9 +12,10 @@
   --fg: #1c1a19;
   --muted: #57524d;
   --border: #e3e0dc;
-  --accent: #8c2f3c;
+  /* Navy from the MVRC logo */
+  --accent: #1f4e79;
   --accent-fg: #ffffff;
-  --accent-soft: #f5e6e8;
+  --accent-soft: #e7eef5;
 }
 
 :root[data-theme='dark'] {
@@ -25,9 +26,9 @@
   --fg: #ecebea;
   --muted: #a9a49f;
   --border: #2e2c2b;
-  --accent: #e58f9c;
-  --accent-fg: #1c0a0e;
-  --accent-soft: #2c1a1d;
+  --accent: #8fbbe3;
+  --accent-fg: #0b1520;
+  --accent-soft: #17212b;
 }
 
 @theme inline {

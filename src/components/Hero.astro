@@ -8,42 +8,90 @@ interface Props {
 }
 const { locale } = Astro.props;
 const { cv, t } = getContent(locale);
+
+const job = cv.experience[0]!;
+const role = job.roles[0]!;
+const school = cv.education[0]!;
+const summary = [
+  { icon: 'server', label: t.hero.currentRole, value: `${role.title} · ${job.company}` },
+  { icon: 'school', label: t.hero.education, value: `${school.degree} · ${school.school}` },
+  {
+    icon: 'award',
+    label: t.hero.certifications,
+    value: cv.certifications
+      .map((c) =>
+        c.status === 'earned' ? c.short : `${c.short} (${t.cert.inProgress.toLowerCase()})`,
+      )
+      .join(' · '),
+  },
+  { icon: 'cloud', label: t.hero.goal, value: t.hero.goalText },
+];
 ---
 
-<section class="pt-16 pb-10 sm:pt-24 sm:pb-14" aria-labelledby="hero-title">
-  <p class="mb-3 text-sm font-medium tracking-wide text-accent uppercase">
-    {cv.headline.split('|')[0]?.trim()}
-  </p>
-  <h1 id="hero-title" class="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-    {cv.name}
-  </h1>
-  <p class="mt-4 max-w-2xl text-lg text-muted sm:text-xl">{cv.headline}</p>
-
-  <ul class="mt-6 flex flex-wrap gap-2" aria-label="Tech stack">
-    {cv.tags.map((tag) => (
-      <li class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-sm">
-        {tag.icon && <Icon name={tag.icon} class="size-3.5 text-muted" />}
-        {tag.label}
-      </li>
-    ))}
-  </ul>
-
-  <div class="mt-8 flex flex-wrap gap-3">
-    <a
-      href={asset(cvPdf[locale])}
-      download
-      type="application/pdf"
-      class="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg shadow-sm transition-opacity hover:opacity-90"
+<section
+  class="grid items-center gap-12 py-16 sm:py-24 lg:min-h-[min(calc(100svh-4rem),52rem)] lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:py-12"
+  aria-labelledby="hero-title"
+>
+  <div>
+    <p class="mb-3 text-sm font-medium tracking-wide text-accent uppercase">
+      {cv.headline.split('|')[0]?.trim()}
+    </p>
+    <h1
+      id="hero-title"
+      class="text-4xl font-bold tracking-tight text-balance sm:text-5xl xl:text-6xl"
     >
-      <Icon name="download" class="size-4.5" />
-      {t.hero.download}
-    </a>
-    <a
-      href="#contact"
-      class="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 font-medium hover:border-accent hover:text-accent"
-    >
-      <Icon name="mail" class="size-4.5" />
-      {t.hero.contact}
-    </a>
+      {cv.name}
+    </h1>
+    <p class="mt-5 max-w-2xl text-lg text-muted sm:text-xl">{cv.headline}</p>
+
+    <ul class="mt-7 flex flex-wrap gap-2" aria-label="Tech stack">
+      {cv.tags.map((tag) => (
+        <li class="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-sm">
+          {tag.icon && <Icon name={tag.icon} class="size-3.5 text-muted" />}
+          {tag.label}
+        </li>
+      ))}
+    </ul>
+
+    <div class="mt-9 flex flex-wrap gap-3">
+      <a
+        href={asset(cvPdf[locale])}
+        download
+        type="application/pdf"
+        class="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg shadow-sm transition-opacity hover:opacity-90"
+      >
+        <Icon name="download" class="size-4.5" />
+        {t.hero.download}
+      </a>
+      <a
+        href="#contact"
+        class="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-5 py-2.5 font-medium hover:border-accent hover:text-accent"
+      >
+        <Icon name="mail" class="size-4.5" />
+        {t.hero.contact}
+      </a>
+    </div>
   </div>
+
+  <aside
+    class="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8"
+    aria-labelledby="hero-summary"
+  >
+    <h2 id="hero-summary" class="text-sm font-semibold tracking-wide text-muted uppercase">
+      {t.hero.summary}
+    </h2>
+    <ul class="mt-5 space-y-5">
+      {summary.map((item) => (
+        <li class="flex gap-4">
+          <span class="grid size-10 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+            <Icon name={item.icon} class="size-5" />
+          </span>
+          <div class="min-w-0">
+            <p class="text-sm text-muted">{item.label}</p>
+            <p class="font-medium">{item.value}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </aside>
 </section>

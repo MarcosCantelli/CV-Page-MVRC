@@ -1,7 +1,7 @@
 name: Container
 
 # DEV  -> image :dev (BASE_PATH=/cv)  -> on-prem dev server (self-hosted runner)
-# main -> image :latest               -> OCI VPS (SSH)
+# main -> image :latest, sha-<commit>  -> approval issue -> "/approve" -> deploy-production.yml
 # v*   -> image :<version>            (no deploy)
 
 on:
@@ -128,51 +128,44 @@ jobs:
           bash deploy/scripts/deploy.sh "$DEPLOY_DIR" "${{ needs.build.outputs.tag }}" \
             "http://127.0.0.1:${port:-4321}/cv/"
 
-  deploy-prod:
-    name: Deploy to production
+  # Approval gate for production (works on a private repo on the Free plan, where environment
+  # reviewers are not available). Opens an issue and stops; commenting "/approve" on it as the
+  # repository owner triggers deploy-production.yml. No minutes are spent while waiting.
+  request-approval:
+    name: Request production approval
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    environment:
-      name: production
-      url: https://mvrc.com.br
+    timeout-minutes: 5
     permissions:
-      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.build.outputs.tag }}
+      API: ${{ github.api_url }}/repos/${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            docker-compose.yml
-            deploy/scripts
-          sparse-checkout-cone-mode: false
-      - name: Require SSH host key pinning
-        env:
-          FINGERPRINT: ${{ secrets.VPS_HOST_FINGERPRINT }}
+      - name: Open approval issue
         run: |
-          if [ -z "$FINGERPRINT" ]; then
-            echo "::error::Secret VPS_HOST_FINGERPRINT is not set (see docs/SETUP.md, etapa 7)"
-            exit 1
-          fi
-      - name: Copy compose file and deploy script
-        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1.0.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
-          source: docker-compose.yml,deploy/scripts/deploy.sh
-          target: /opt/cv-page-mvrc
-      - name: Pull and restart
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
-          script: bash /opt/cv-page-mvrc/deploy/scripts/deploy.sh /opt/cv-page-mvrc "${{ needs.build.outputs.tag }}"
-      - name: Public health check
-        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors https://mvrc.com.br/healthz
+          set -euo pipefail
+          api() { curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
+
+          # Label used to find approval issues (ignore "already exists").
+          api -X POST "$API/labels" -d '{"name":"deploy-approval","color":"1F4E79"}' >/dev/null 2>&1 || true
+
+          # Close older pending approvals: only the newest build can be approved.
+          for n in $(api "$API/issues?state=open&labels=deploy-approval&per_page=50" | jq -r '.[].number'); do
+            api -X POST "$API/issues/$n/comments" -d "$(jq -n --arg t "$TAG" '{body: ("Substituída por um build mais novo (" + $t + ").")}')" >/dev/null
+            api -X PATCH "$API/issues/$n" -d '{"state":"closed","state_reason":"not_planned"}' >/dev/null
+          done
+
+          body=$(jq -n --arg tag "$TAG" --arg run "$RUN_URL" --arg sha "$GITHUB_SHA" '{
+            title: ("Deploy production: " + $tag),
+            labels: ["deploy-approval"],
+            body: ("A imagem `ghcr.io/marcoscantelli/cv-page-mvrc:" + $tag + "` está pronta.\n\n" +
+                   "- Commit: " + $sha + "\n- Build: " + $run + "\n\n" +
+                   "Comente **`/approve`** para publicar em https://mvrc.com.br ou **`/reject`** para descartar.")
+          }')
+          url=$(api -X POST "$API/issues" -d "$body" | jq -r .html_url)
+          echo "### Aguardando aprovação: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Approval issue: $url"
