@@ -292,96 +292,66 @@ curl -s -X POST http://localhost:4321/api/contact \
 
 ---
 
-## Etapa 5 — Cloudflare Tunnel (reaproveitando o túnel que já existe)
+## Etapa 5 — Cloudflare Tunnel exclusivo para `mvrc.com.br`
 
-A VPS já roda um `cloudflared` **no host** (pacote rpm, serviço systemd) que publica a outra
-aplicação. Um mesmo túnel atende hostnames de **domínios diferentes** da mesma conta
-Cloudflare, então basta acrescentar uma rota para `mvrc.com.br`. Isso economiza memória (a VM tem
-512 MB) e não mexe na outra aplicação.
+O site tem **o próprio túnel**, executado por um container `cloudflared` dentro do compose de
+produção. Assim o tráfego de `mvrc.com.br` só chega à VPS de produção.
+
+> ⚠️ **Não reaproveite um túnel que tenha conectores em outras máquinas** (por exemplo, um túnel
+> com redundância entre a VPS e o servidor de dev). A Cloudflare distribui as requisições entre
+> os conectores, e os que não rodam este site respondem **502** (ou servem a versão errada).
 
 ```
-Internet ─► Cloudflare ─► túnel (cloudflared no host) ─┬─► outro-dominio  → 127.0.0.1:8081  (outra aplicação)
-                                                       └─► mvrc.com.br    → 127.0.0.1:4321  (este site)
+Internet ─► Cloudflare ─► túnel "mvrc-prd" ─► container cloudflared ─► app:4321   (só na VPS)
 ```
 
-### 5.1 Descobrir como o túnel é gerenciado
+### 5.1 Criar o túnel
 
-Na VPS:
+1. **dash.cloudflare.com** → **Zero Trust** → **Networks** → **Tunnels** → **Create a tunnel**.
+2. **Cloudflared** → **Next** → **Tunnel name**: `mvrc-prd` → **Save tunnel**.
+3. Em **Choose your environment**, selecione **Docker** e copie **só o token** (o texto depois
+   de `--token`). **Não** rode o comando mostrado. Clique em **Next**.
 
-```bash
-systemctl cat cloudflared | grep -i execstart
-sudo ls /etc/cloudflared/ 2>/dev/null
+### 5.2 Rotas do túnel
+
+**Published application routes** (ou **Public Hostname**) → **Add**:
+
+| Subdomain | Domain        | Type   | URL        |
+| --------- | ------------- | ------ | ---------- |
+| _(vazio)_ | `mvrc.com.br` | `HTTP` | `app:4321` |
+| `www`     | `mvrc.com.br` | `HTTP` | `app:4321` |
+
+`app:4321` é o nome do serviço na rede Docker do compose (o `cloudflared` roda ao lado do site).
+Se a Cloudflare reclamar que o hostname já existe em outro túnel, remova primeiro a rota antiga
+naquele túnel (e, se sobrar, o registro **CNAME** em **mvrc.com.br** → **DNS** → **Records**).
+
+### 5.3 Token na VPS
+
+No `/opt/cv-page-mvrc/.env` (como `deploy`), acrescente:
+
+```dotenv
+TUNNEL_TOKEN=<token copiado em 5.1>
+COMPOSE_PROFILES=tunnel
 ```
 
-- Se o `ExecStart` tem `--token` (ou `run --token`): túnel **gerenciado pelo painel** → siga **5.2**.
-- Se aparece `--config /etc/cloudflared/config.yml` (ou existe esse arquivo com `ingress:`): túnel
-  **gerenciado localmente** → siga **5.3**.
+`COMPOSE_PROFILES=tunnel` faz o `docker compose up -d` (usado pela esteira) subir também o
+`cloudflared`.
 
-### 5.2 Túnel gerenciado pelo painel
+### 5.4 Ajustes do domínio
 
-1. **dash.cloudflare.com** → **Zero Trust** → **Networks** → **Tunnels**.
-2. Clique no túnel que já existe (o que está **Healthy**) → **Edit** (ou **Configure**).
-3. Aba **Public Hostname** (em painéis novos: **Published application routes**) → **Add a public
-   hostname**:
-   - **Subdomain**: _(vazio)_ · **Domain**: `mvrc.com.br` · **Path**: _(vazio)_
-   - **Service** → **Type**: `HTTP` · **URL**: `127.0.0.1:4321`
-   - **Save hostname**.
-   - Se a Cloudflare reclamar que já existe um registro DNS para `mvrc.com.br`, apague o registro
-     A/AAAA/CNAME antigo da raiz em **mvrc.com.br** → **DNS** → **Records** e tente de novo.
-4. Não é preciso reiniciar nada na VPS: o `cloudflared` recebe a rota nova sozinho. A rota do
-   outro domínio continua como está.
+**mvrc.com.br** → **SSL/TLS** → **Edge Certificates**: **Always Use HTTPS** ligado e **Minimum TLS
+Version** = `TLS 1.2`.
 
-### 5.3 Túnel gerenciado localmente (`config.yml`)
-
-1. Faça backup e edite o arquivo:
-
-   ```bash
-   sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak
-   sudo nano /etc/cloudflared/config.yml
-   ```
-
-2. Em `ingress:`, acrescente a regra **antes** da última linha (`- service: http_status:404`):
-
-   ```yaml
-   - hostname: mvrc.com.br
-     service: http://127.0.0.1:4321
-   ```
-
-3. Valide, crie o DNS e reinicie:
-
-   ```bash
-   sudo cloudflared tunnel ingress validate --config /etc/cloudflared/config.yml
-   sudo cloudflared tunnel route dns <NOME_OU_ID_DO_TUNEL> mvrc.com.br
-   sudo systemctl restart cloudflared
-   ```
-
-   O nome/ID do túnel está na linha `tunnel:` do mesmo arquivo. O `route dns` precisa do
-   `cert.pem` da conta (`cloudflared tunnel login`); se der erro, crie no painel o registro
-   **CNAME** `mvrc.com.br` → `<ID_DO_TUNEL>.cfargotunnel.com` com **Proxied** ligado.
-
-### 5.4 Ajustes do domínio `mvrc.com.br`
-
-1. (Opcional) `www`: repita a rota com **Subdomain** `www`, depois **Rules** → **Redirect Rules** →
-   **Create rule** → modelo _Redirect from WWW to root_.
-2. **SSL/TLS** → **Edge Certificates** → ative **Always Use HTTPS** e defina **Minimum TLS
-   Version** = `TLS 1.2`.
-
-Até o container subir (etapa 6), `https://mvrc.com.br` responde **502**. Isso é esperado.
-
-**Testar** (depois da etapa 6):
+**Testar:**
 
 ```bash
 curl -I https://mvrc.com.br/            # 200, com content-security-policy e strict-transport-security
 curl https://mvrc.com.br/healthz        # {"status":"ok"}
-curl -I https://<outro-dominio>/        # a outra aplicação continua respondendo
 ```
 
-> **Alternativa sem o cloudflared do host:** crie um túnel só para este site, coloque o token em
-> `TUNNEL_TOKEN` no `.env` e suba com `docker compose --profile tunnel up -d` (o serviço do túnel
-> aponta para `app:4321`). Custa ~30 MB a mais de memória.
+No painel, o túnel `mvrc-prd` deve ter **um único conector** (hostname da VPS).
 
-✅ **Pronto quando:** o túnel tem a rota `mvrc.com.br` → `127.0.0.1:4321` e a outra aplicação
-continua no ar.
+✅ **Pronto quando:** `mvrc-prd` está **Healthy** com um conector e responde em `mvrc.com.br`.
 
 ---
 
@@ -390,8 +360,9 @@ continua no ar.
 VPS: **Oracle Linux 9.8**, x86_64 (AMD), **512 MB de RAM** + 4 GB de swap, 1 OCPU. A imagem é só
 `linux/amd64`. A máquina **já roda outra aplicação** (containers publicados só em
 `127.0.0.1`) com Docker CE 29 e `cloudflared` no host. Nada aqui altera essa aplicação:
-este site roda num projeto Compose separado (`cv-page-mvrc`), publicado só em `127.0.0.1:4321`, com
-limite de 128 MB de memória (uso medido: ~55 MB).
+este site roda num projeto Compose separado (`cv-page-mvrc`) com o próprio túnel, publicado só em
+`127.0.0.1:4321` (teste de saúde), com limites de 128 MB para o site (uso medido: ~55 MB) e 96 MB
+para o `cloudflared`.
 
 ### 6.1 Chave SSH exclusiva para o deploy
 
