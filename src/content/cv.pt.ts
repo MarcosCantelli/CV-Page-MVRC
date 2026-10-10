@@ -8,7 +8,7 @@ export const cv: CV = {
   headline: 'Analista de BI | Dados, CI/CD e Cloud (Azure)',
   tags,
   about:
-    'Engenheiro da Computação formado pela FIAP, com mais de 4 anos de trajetória no Departamento de Varejo do Bradesco: comecei como estagiário, fui efetivado como Analista de Suporte de TI e hoje atuo como Analista de BI na equipe de Sistemas de Informação e Relatórios Gerenciais. Trabalho com análise de dados em SQL Server e Databricks e sou responsável pelo versionamento e pela publicação das aplicações da área. Tenho foco em infraestrutura e automação em ambientes Linux, com projetos em Jenkins, VMware vSphere, Terraform e Vagrant, e estou aprendendo OLVM. Certificado Microsoft AZ-900, em preparação para o AZ-104. Busco fazer a transição para DevOps, aliando minha experiência com dados e com entregas em produção.',
+    'Engenheiro da Computação formado pela FIAP, mais de 4 anos no Departamento de Varejo do Bradesco, iniciando como estagiário e sendo efetivado como Analista de Suporte de TI. Na atualidade, já conquistando mais reconhecimento e promoção, atuo como Analista de BI na equipe de Sistemas de Informação e Relatórios Gerenciais. Dentro das atividades, tenho em destaque, análise de dados em SQL Server e Databricks sendo responsável pelo versionamento e publicação das aplicações da área dentro das regras de compliance. Tenho foco em infraestrutura e automação em ambientes Linux, com projetos em Jenkins, VMware vSphere, Terraform e Vagrant, e estou ganhando competências em OLVM. Sou Certificado Microsoft AZ-900, em preparação para o AZ-104. Busco fazer a transição para DevOps, aliando minha experiência com dados e com entregas em produção.',
   education: [{ degree: 'Engenharia da Computação', school: 'FIAP' }],
   experience: [
     {
