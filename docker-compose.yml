@@ -45,7 +45,7 @@ services:
   cloudflared:
     <<: *hardening
     profiles: [tunnel]
-    image: cloudflare/cloudflared:2026.10.0
+    image: cloudflare/cloudflared:2026.10.1
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
