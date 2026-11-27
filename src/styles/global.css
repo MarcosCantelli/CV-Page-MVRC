@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Color tokens. All text/background pairs meet WCAG AA in both themes. */
+/* Color tokens. All text/background pairs meet WCAG AA in both themes (checked by tests/e2e/tema.spec.ts). */
 :root {
   color-scheme: light;
   --bg: #f7f6f4;
@@ -12,6 +12,8 @@
   --fg: #1c1a19;
   --muted: #57524d;
   --border: #e3e0dc;
+  /* Borders of controls (buttons): >= 3:1 against the page (WCAG 1.4.11). */
+  --border-strong: #857f79;
   /* Navy from the MVRC logo */
   --accent: #1f4e79;
   --accent-fg: #ffffff;
@@ -26,6 +28,7 @@
   --fg: #ecebea;
   --muted: #a9a49f;
   --border: #2e2c2b;
+  --border-strong: #76716c;
   --accent: #8fbbe3;
   --accent-fg: #0b1520;
   --accent-soft: #17212b;
@@ -39,6 +42,7 @@
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);

@@ -19,7 +19,7 @@ const pt = {
     menu: 'Abrir menu',
     close: 'Fechar menu',
   },
-  theme: { toggle: 'Alternar tema claro/escuro' },
+  theme: { dark: 'Tema escuro' },
   lang: { switch: 'English', switchLabel: 'View this page in English', short: 'EN' },
   hero: {
     download: 'Baixar currículo (PDF)',
@@ -101,7 +101,7 @@ const en: UI = {
     menu: 'Open menu',
     close: 'Close menu',
   },
-  theme: { toggle: 'Toggle light/dark theme' },
+  theme: { dark: 'Dark theme' },
   lang: { switch: 'Português', switchLabel: 'Ver esta página em português', short: 'PT' },
   hero: {
     download: 'Download résumé (PDF)',

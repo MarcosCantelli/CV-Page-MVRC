@@ -21,6 +21,10 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 
+# playwright
+test-results/
+playwright-report/
+
 # lighthouse
 .lighthouseci/
 docs/cv/*.docx
