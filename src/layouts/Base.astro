@@ -54,8 +54,19 @@ const jsonLd = {
     {noindex && <meta name="robots" content="noindex" />}
 
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f7f6f4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
+    <!-- Match --bg of each theme. Media queries are the no-JS fallback; scripts toggle them to follow the manual choice. -->
+    <meta
+      name="theme-color"
+      content="#f7f6f4"
+      media="(prefers-color-scheme: light)"
+      data-for="light"
+    />
+    <meta
+      name="theme-color"
+      content="#111111"
+      media="(prefers-color-scheme: dark)"
+      data-for="dark"
+    />
     <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
     <link rel="icon" href={asset('favicon-32.png')} sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href={asset('apple-touch-icon.png')} />
@@ -96,6 +107,9 @@ const jsonLd = {
         if (t !== 'light' && t !== 'dark')
           t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         d.dataset.theme = t;
+        document.querySelectorAll('meta[name="theme-color"][data-for]').forEach((m) => {
+          m.setAttribute('media', m.dataset.for === t ? 'all' : 'not all');
+        });
         if (!matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('motion');
       })();
     </script>
