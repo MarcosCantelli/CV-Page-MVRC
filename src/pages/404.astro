@@ -1,4 +1,5 @@
 ---
+import ThemeToggle from '../components/ThemeToggle.astro';
 import Base from '../layouts/Base.astro';
 import { getContent, localeHome } from '../lib/i18n';
 
@@ -7,6 +8,9 @@ const en = getContent('en').t;
 ---
 
 <Base locale="pt" title={`404 · ${t.notFound.title}`} noindex>
+  <div class="fixed top-4 right-4 z-40">
+    <ThemeToggle locale="pt" />
+  </div>
   <main
     id="main"
     class="mx-auto grid min-h-dvh max-w-xl place-content-center gap-6 px-6 text-center"
@@ -29,3 +33,7 @@ const en = getContent('en').t;
     </p>
   </main>
 </Base>
+
+<script>
+  import '../scripts/theme';
+</script>
